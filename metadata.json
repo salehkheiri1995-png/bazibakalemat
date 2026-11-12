@@ -1,0 +1,6 @@
+{
+  "name": "قند پارسی - بازی کلمات و معما",
+  "description": "بازی جذاب و پرطرفدار ایرانی با مراحل کلمات، حدس ضرب‌المثل، چالش روزانه، گردونه شانس و سیستم درآمدزایی بازار",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
