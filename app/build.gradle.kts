@@ -9,7 +9,7 @@ plugins {
 }
 
 android {
-  namespace = "com.example"
+  namespace = "com.aistudio.qandparsi"
   compileSdk { version = release(36) { minorApiLevel = 1 } }
 
   defaultConfig {
@@ -20,6 +20,23 @@ android {
     versionName = "1.0"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+    // Tapsell reads the application key from the merged manifest. The fallback below is the
+    // public key from the official Tapsell sample; replace it (or set TAPSELL_APP_KEY) with
+    // the key of your own «قند پارسی» app before publishing on Cafe Bazaar.
+    val tapsellAppKey = System.getenv("TAPSELL_APP_KEY")
+      ?: (project.findProperty("TAPSELL_APP_KEY") as String?)
+      ?: "76798342-99a7-4a5f-bf5a-60a088d5dcfb"
+    manifestPlaceholders["TapsellMediationAppKey"] = tapsellAppKey
+
+    // Cafe Bazaar (Poolakey) in-app billing RSA public key. The SDK verifies every purchase
+    // signature locally against this key. Leave empty until you paste your real key from the
+    // Cafe Bazaar developer console (or set BAZAAR_RSA_PUBLIC_KEY). Purchases are rejected
+    // (no items are granted) while this key is not configured.
+    val bazaarRsaPublicKey = System.getenv("BAZAAR_RSA_PUBLIC_KEY")
+      ?: (project.findProperty("BAZAAR_RSA_PUBLIC_KEY") as String?)
+      ?: ""
+    buildConfigField("String", "BAZAAR_RSA_PUBLIC_KEY", "\"$bazaarRsaPublicKey\"")
   }
 
   // Do not remove or modify these signingConfigs. They are necessary for building, installing,
@@ -126,6 +143,9 @@ dependencies {
   implementation(libs.okhttp)
   // implementation(libs.play.services.location)
   implementation(libs.retrofit)
+  implementation(libs.tapsell)
+  implementation(libs.tapsell.adapter.legacy)
+  implementation(libs.poolakey)
   testImplementation(libs.androidx.compose.ui.test.junit4)
   testImplementation(libs.androidx.core)
   testImplementation(libs.androidx.junit)

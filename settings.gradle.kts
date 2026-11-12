@@ -19,6 +19,10 @@ dependencyResolutionManagement {
   repositories {
     google()
     mavenCentral()
+    // Tapsell Mediation SDK and its adapters are published here.
+    maven("https://maven.tapsell.ir")
+    // Poolakey (Cafe Bazaar in-app billing) is published via JitPack.
+    maven("https://jitpack.io")
   }
 }
 
