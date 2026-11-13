@@ -16,8 +16,8 @@ android {
     applicationId = "com.aistudio.qandparsi.kzmqpx"
     minSdk = 24
     targetSdk = 36
-    versionCode = 1
-    versionName = "1.0"
+    versionCode = 2
+    versionName = "1.1"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -26,7 +26,7 @@ android {
     // the key of your own «قند پارسی» app before publishing on Cafe Bazaar.
     val tapsellAppKey = System.getenv("TAPSELL_APP_KEY")
       ?: (project.findProperty("TAPSELL_APP_KEY") as String?)
-      ?: "76798342-99a7-4a5f-bf5a-60a088d5dcfb"
+      ?: "pcgalhaftgjkqbfbaqirimmfrclnnctcmrdalctdqifiisijtgsigargplshnegkjggoop"
     manifestPlaceholders["TapsellMediationAppKey"] = tapsellAppKey
 
     // Cafe Bazaar (Poolakey) in-app billing RSA public key. The SDK verifies every purchase
@@ -37,6 +37,17 @@ android {
       ?: (project.findProperty("BAZAAR_RSA_PUBLIC_KEY") as String?)
       ?: ""
     buildConfigField("String", "BAZAAR_RSA_PUBLIC_KEY", "\"$bazaarRsaPublicKey\"")
+
+    // Tapsell ad zones — leave empty to use the official sample test zones until you create
+    // real zones in the Tapsell dashboard for this app.
+    val bannerZoneId = System.getenv("TAPSELL_BANNER_ZONE_ID")
+      ?: (project.findProperty("TAPSELL_BANNER_ZONE_ID") as String?)
+      ?: "6af601d93499d037a4e325fc"
+    val rewardedZoneId = System.getenv("TAPSELL_REWARDED_ZONE_ID")
+      ?: (project.findProperty("TAPSELL_REWARDED_ZONE_ID") as String?)
+      ?: "6af601adeb3e7c7d8f0f0faf"
+    buildConfigField("String", "TAPSELL_BANNER_ZONE_ID", "\"$bannerZoneId\"")
+    buildConfigField("String", "TAPSELL_REWARDED_ZONE_ID", "\"$rewardedZoneId\"")
   }
 
   // Do not remove or modify these signingConfigs. They are necessary for building, installing,

@@ -21,38 +21,60 @@ $env:JAVA_HOME = "C:\Program Files\Microsoft\jdk-17.0.21.21-hotspot"
 کلید اپلیکیشن از طریق `TapsellMediationAppKey` در مانیفست ادغام می‌شود.
 مقدار پیش‌فرض، کلید عمومی نمونهٔ تپسل است و **برای انتشار باید تغییر کند**.
 
+شناسهٔ زون‌های بنر و جایزه‌ای از `BuildConfig` خوانده می‌شوند که از محیط متغیر
+پر می‌شوند (مقادیر فعلی، زون‌های نمونهٔ رسمی هستند):
+
+| متغیر | کاربرد |
+|--------|--------|
+| `TAPSELL_APP_KEY` | کلید اپ |
+| `TAPSELL_BANNER_ZONE_ID` | زون بنر |
+| `TAPSELL_REWARDED_ZONE_ID` | زون ویدیوی جایزه‌ای |
+
 ```powershell
 $env:TAPSELL_APP_KEY = "<production-app-key>"
-# یا
-.\gradlew.bat assembleRelease -PTAPSELL_APP_KEY=<production-app-key>
+$env:TAPSELL_BANNER_ZONE_ID = "<banner-zone>"
+$env:TAPSELL_REWARDED_ZONE_ID = "<rewarded-zone>"
 ```
 
-شناسهٔ زون‌های بنر و جایزه‌ای در فایل زیر است و باید با زون‌های ساخته‌شده
-در پنل تپسل برای همین اپ جایگزین شود:
+این سه مقدار را می‌توانید در `secrets.local` هم بگذارید تا اسکریپت ساخت آن‌ها را بردارد.
 
-`app/src/main/java/com/example/ads/AdConfig.kt`
+> جایزه فقط وقتی پرداخت می‌شود که SDK رویداد `onRewarded()` را صدا بزند؛ بستن،
+> رد کردن یا شکست در بارگذاری تبلیغ هیچ سکه/الماسی نمی‌دهد.
 
-- بنر: `BANNER_ZONE_ID`
-- ویدیوی جایزه‌ای: `REWARDED_ZONE_ID`
+### ساختن اپ و زون‌ها در پنل تپسل
+1. در [panel.tapsell.ir](https://panel.tapsell.ir) ثبت‌نام کنید و یک «اپلیکیشن جدید» بسازید.
+2. **کلید اپ** (App Key) را کپی کنید → `TAPSELL_APP_KEY`.
+3. یک زون **بنر (Banner)** با سایز معمولی بسازید → `TAPSELL_BANNER_ZONE_ID`.
+4. یک زون **ویدیوی جایزه‌ای (Rewarded Video)** بسازید → `TAPSELL_REWARDED_ZONE_ID`.
+5. زون‌ها را در وضعیت «فعال» بگذارید و در پنل، بستهٔ اپ
+   (`com.aistudio.qandparsi.kzmqpx`) را ثبت کنید.
 
-جایزه فقط وقتی پرداخت می‌شود که SDK رویداد `onRewarded()` را صدا بزند؛ بستن،
-رد کردن یا شکست در بارگذاری تبلیغ هیچ سکه/الماسی نمی‌دهد.
+## ۳. کلید امضای انتشار (ساخته شد)
 
-## ۳. امضای نسخهٔ انتشار
+کلید امضای انتشار ساخته شده و در مکانی امن بیرون از پروژه ذخیره شده است:
 
-تنظیمات امضای AI Studio در `app/build.gradle.kts` دست‌نخورده باقی مانده است.
-برای ساخت نسخهٔ نهایی این متغیرهای محیطی را تنظیم کنید:
+```
+C:\Keystores\qandparsi-upload.jks
+```
 
+- alias: `upload`
+- اعتبار: ۱۰٬۰۰۰ روز (~۲۷ سال)
+- اعتبارنامه‌ها (رمزها) در `C:\Keystores\.generated_pass.txt` و `secrets.local` ذخیره شده‌اند.
+
+**بیشترین مهم:** از این فایل و رمزها یک بک‌آپ آفلاین (فلش/USB یا گاوصندوق ابری خصوصی)
+بگیرید. بعد از اولین انتشار، کافه بازار آپلودهای بعدی را با همین کلید می‌خواهد و
+**کلید قابل تغییر نیست**.
+
+### ساخت نسخهٔ انتشار
 ```powershell
-$env:KEYSTORE_PATH = "C:\path\to\my-upload-key.jks"
-$env:STORE_PASSWORD = "<store-password>"
-$env:KEY_PASSWORD = "<key-password>"
-.\gradlew.bat assembleRelease
+.\build-release.ps1
 ```
+این اسکریپت `secrets.local` را می‌خواند (KEYSTORE_PATH, STORE_PASSWORD, KEY_PASSWORD و
+اختیاری: TAPSELL_* و BAZAAR_RSA_PUBLIC_KEY) و `assembleRelease` را اجرا می‌کند.
 
 خروجی: `app/build/outputs/apk/release/app-release.apk`
 
-> کلید امضا را گم نکنید؛ برای آپدیت‌های بعدی در بازار به همان کلید نیاز دارید.
+> `secrets.local` در `.gitignore` است و هرگز نباید در گیت بیاید.
 
 ## ۴. پرداخت درون‌برنامه‌ای (Poolakey)
 
@@ -73,22 +95,32 @@ $env:BAZAAR_RSA_PUBLIC_KEY = "<your-rsa-public-key>"
 > (بازیکن پیام «پرداخت هنوز پیکربندی نشده» می‌بیند). این رفتار صادقانه است و از اعتبار کردن
 > دروغین جلوگیری می‌کند.
 
-## ۵. نکات کافه بازار
+## ۵. انتشار در کافه بازار
 
-- `namespace` و بستهٔ کد `com.aistudio.qandparsi` است؛ `applicationId` فعلی
-  `com.aistudio.qandparsi.kzmqpx` است. شناسهٔ بسته پس از اولین انتشار قابل تغییر نیست؛ اگر نام
-  برند خود را می‌خواهید، **قبل از اولین انتشار** آن را در `app/build.gradle.kts` تغییر دهید.
-- قبل از هر انتشار `versionCode` را افزایش دهید.
-- سیاست حریم خصوصی و توضیح استفاده از شناسهٔ تبلیغاتی (Tapsell) و پرداخت درون‌برنامه‌ای را در
-  صفحهٔ محصول بازار قرار دهید.
+مراحل انتشار:
+
+1. در [کافه بازار توسعه‌دهندگان](https://pishkhan.cafebazaar.ir) حساب بسازید.
+2. «اپلیکیشن جدید» → بستهٔ `com.aistudio.qandparsi.kzmqpx` (همان `applicationId`).
+3. APK امضاشده (`app-release.apk`) را آپلود کنید.
+4. عنوان، توضیح، آیکون، اسکرین‌شات و دسته‌بندی را وارد کنید.
+5. «سیاست حریم خصوصی» که استفاده از شناسهٔ تبلیغاتی (Tapsell) و پرداخت درون‌برنامه‌ای را توضیح دهد پیوست کنید.
+6. قبل از هر آپلود جدید `versionCode` را در `app/build.gradle.kts` افزایش دهید (نسخهٔ فعلی `1` است).
+
+نکات:
+- `namespace` و بستهٔ کد `com.aistudio.qandparsi` است؛ `applicationId` `com.aistudio.qandparsi.kzmqpx`
+  است. شناسهٔ بسته پس از اولین انتشار قابل تغییر نیست؛ اگر نام برند خود را می‌خواهید،
+  **قبل از اولین انتشار** `applicationId` را در `app/build.gradle.kts` تغییر دهید.
+- کلید امضای `C:\Keystores\qandparsi-upload.jks` را نگه دارید؛ آپدیت‌های بعدی با همین کلید امضا می‌شوند.
 
 ## ۶. بررسی سریع پیش از انتشار
 
 - [ ] تست‌های واحد سبز هستند (`testDebugUnitTest`).
-- [ ] کلید و زون‌های تولیدی تپسل جایگزین شده‌اند.
-- [ ] کلید RSA عمومی بازار در Build تنظیم شده است (`BAZAAR_RSA_PUBLIC_KEY`).
+- [ ] `TAPSELL_APP_KEY`، `TAPSELL_BANNER_ZONE_ID`، `TAPSELL_REWARDED_ZONE_ID` تولیدی در `secrets.local` گذاشته شده‌اند.
 - [ ] بنر در صفحهٔ اصلی و فروشگاه دیده می‌شود و در صفحهٔ بازی مخفی است.
 - [ ] ویدیوی جایزه‌ای فقط پس از `onRewarded()` جایزه می‌دهد.
-- [ ] کشیدن انگشت به سمت چپ، حرف سمت چپ چرخ را انتخاب می‌کند.
+- [ ] `BAZAAR_RSA_PUBLIC_KEY` از پنل بازار در `secrets.local` گذاشته شده است.
 - [ ] خرید واقعی روی یک دستگاه با بازار نصب‌شده تست شده است.
-- [ ] `versionCode` افزایش یافته و APK با کلید انتشار امضا شده است.
+- [ ] کشیدن انگشت به سمت چپ، حرف سمت چپ چرخ را انتخاب می‌کند.
+- [ ] `.\build-release.ps1` اجرا و `app-release.apk` بدون خطا با کلید انتشار امضا شده است.
+- [ ] بک‌آپ آفلاین از `qandparsi-upload.jks` + رمزها گرفته شده است.
+- [ ] `versionCode` مناسب است و APK جدید است.

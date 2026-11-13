@@ -1,5 +1,6 @@
 package com.aistudio.qandparsi.ads
 
+import com.aistudio.qandparsi.BuildConfig
 import ir.tapsell.mediation.ad.request.BannerSize
 
 /**
@@ -8,13 +9,20 @@ import ir.tapsell.mediation.ad.request.BannerSize
  * The application key is supplied through the `TapsellMediationAppKey` manifest placeholder in
  * `app/build.gradle.kts`, because the SDK reads it from the merged manifest.
  *
- * ⚠️ The zone ids below are the public test zones published with the official Tapsell sample.
- * Replace them (and the app key in `build.gradle.kts`) with the zones created for
- * «قند پارسی» in the Tapsell dashboard before releasing on Cafe Bazaar.
+ * The banner and rewarded zone ids below come from BuildConfig, which is populated from the
+ * `TAPSELL_BANNER_ZONE_ID` / `TAPSELL_REWARDED_ZONE_ID` environment variables (or Gradle
+ * properties). Until you provide real zones, the official public sample test zones are used:
+ *
+ *   - App key:    `TAPSELL_APP_KEY` (defaults to the official sample key)
+ *   - Banner:     `TAPSELL_BANNER_ZONE_ID`
+ *   - Rewarded:   `TAPSELL_REWARDED_ZONE_ID`
+ *
+ * Set all three to your production values (from the Tapsell dashboard for this app) before
+ * releasing on Cafe Bazaar.
  */
 object AdConfig {
-    const val BANNER_ZONE_ID: String = "e3d5999c-5990-4e31-8ce9-642ce040a7f4"
-    const val REWARDED_ZONE_ID: String = "1d710cc7-5e96-46ac-a3e9-8463300333e6"
+    const val BANNER_ZONE_ID: String = BuildConfig.TAPSELL_BANNER_ZONE_ID
+    const val REWARDED_ZONE_ID: String = BuildConfig.TAPSELL_REWARDED_ZONE_ID
 
     val BANNER_SIZE: BannerSize = BannerSize.BANNER_320_50
 }
