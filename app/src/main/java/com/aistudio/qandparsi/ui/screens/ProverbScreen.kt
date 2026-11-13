@@ -250,15 +250,19 @@ fun ProverbScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    IconButton(
+                    Surface(
                         onClick = onShuffle,
-                        modifier = Modifier
-                            .size(36.dp)
-                            .testTag("shuffle_proverb_letters_btn")
+                        shape = RoundedCornerShape(10.dp),
+                        color = GoldSecondary.copy(alpha = 0.14f),
+                        modifier = Modifier.testTag("shuffle_proverb_letters_btn")
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(text = "بُر زدن 🔀", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = GoldSecondary)
-                        }
+                        Text(
+                            text = "بُر زدن 🔀",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = GoldSecondary,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                        )
                     }
 
                     Text(

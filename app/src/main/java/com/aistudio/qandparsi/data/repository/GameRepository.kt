@@ -499,7 +499,7 @@ object GameRepository {
             coins = 100,
             gems = 0,
             colorHex = 0xFF00796B,
-            iconEmoji = "🪙"
+            iconEmoji = "💰"
         ),
         WheelReward(
             id = 2,
@@ -543,7 +543,7 @@ object GameRepository {
             coins = 300,
             gems = 0,
             colorHex = 0xFF00838F,
-            iconEmoji = "🪙"
+            iconEmoji = "🏆"
         ),
         WheelReward(
             id = 7,
