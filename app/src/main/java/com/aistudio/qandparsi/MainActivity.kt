@@ -217,14 +217,9 @@ fun QandParsiApp(viewModel: GameViewModel) {
             .fillMaxSize()
             .testTag("app_root_scaffold"),
         bottomBar = {
-            // Keep the banner out of active gameplay and respect the "remove ads" entitlement.
-            val gameplayRoutes = setOf(
-                ScreenRoute.WORD_GAME,
-                ScreenRoute.PROVERB_GAME,
-                ScreenRoute.DAILY_CHALLENGE,
-                ScreenRoute.FORTUNE_WHEEL
-            )
-            if (!isAdsRemoved && route !in gameplayRoutes) {
+            // Show the standard Tapsell banner on every screen (home, map, word game, proverb,
+            // daily, wheel, store…), always respecting the "remove ads" purchase.
+            if (!isAdsRemoved) {
                 // Edge-to-edge is enabled, so the banner must stay above the system navigation
                 // bar (gesture pill / 3-button nav). Without navigationBarsPadding the Tapsell
                 // banner is drawn underneath the system buttons and becomes unclickable.
