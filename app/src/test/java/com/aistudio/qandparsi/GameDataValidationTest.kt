@@ -1,8 +1,12 @@
 package com.aistudio.qandparsi
 
+import com.aistudio.qandparsi.data.repository.CityCatalog
 import com.aistudio.qandparsi.data.repository.GameRepository
+import com.aistudio.qandparsi.data.repository.StoryCatalog
 import com.aistudio.qandparsi.util.PersianText
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -13,13 +17,104 @@ import org.junit.Test
 class GameDataValidationTest {
 
     @Test
-    fun levelsHaveUniqueIdsAndFormableWords() {
-        assertEquals(35, GameRepository.levels.size)
+    fun mapHasEveryCityAndStageInOrder() {
+        assertEquals("Expected 150 cities", 150, CityCatalog.cities.size)
         assertEquals(
+            "Every city needs a unique key",
+            CityCatalog.cities.size,
+            CityCatalog.cities.map { it.key }.toSet().size
+        )
+        assertEquals(
+            "Expected 150 cities × 20 stages",
+            CityCatalog.cities.size * CityCatalog.STAGES_PER_CITY,
+            GameRepository.levels.size
+        )
+        assertEquals(
+            "Level ids must stay sequential because the ViewModel uses them as indexes",
             GameRepository.levels.size,
             GameRepository.levels.map { it.id }.toSet().size
         )
 
+        val byCity = GameRepository.levels.groupBy { it.city }
+        assertEquals(
+            "Every catalogued city must be playable",
+            CityCatalog.cities.map { it.key }.toSet(),
+            byCity.keys
+        )
+        CityCatalog.cities.forEachIndexed { cityIndex, city ->
+            val cityLevels = byCity.getValue(city.key)
+            assertEquals(
+                "${city.nameFa} must have ${CityCatalog.STAGES_PER_CITY} stages",
+                CityCatalog.STAGES_PER_CITY,
+                cityLevels.size
+            )
+            cityLevels.forEachIndexed { stageIndex, level ->
+                val expectedId = cityIndex * CityCatalog.STAGES_PER_CITY + stageIndex + 1
+                assertEquals(
+                    "${city.nameFa} stage ${stageIndex + 1} has an out-of-order id",
+                    expectedId,
+                    level.id
+                )
+                assertEquals(
+                    "${city.nameFa} stage ${stageIndex + 1} has a wrong stage number",
+                    stageIndex + 1,
+                    level.cityStageNumber
+                )
+                assertEquals(
+                    "${city.nameFa}: all stages must share the same stage count",
+                    CityCatalog.STAGES_PER_CITY,
+                    level.cityStageCount
+                )
+            }
+        }
+    }
+
+    @Test
+    fun storyMilestonesFollowCityStages() {
+        CityCatalog.cities.forEach { city ->
+            val cityLevels = GameRepository.levelsByCity.getValue(city.key)
+            cityLevels.forEach { level ->
+                val unlock = StoryCatalog.unlockFor(level)
+                if (level.cityStageNumber % 5 == 0) {
+                    assertNotNull(
+                        "${city.nameFa} stage ${level.cityStageNumber} must unlock a diary page",
+                        unlock
+                    )
+                    assertTrue(
+                        "${city.nameFa}: the diary page must mention the city",
+                        unlock!!.page.body.contains(city.nameFa)
+                    )
+                    assertTrue(
+                        "${city.nameFa}: every diary page needs a souvenir",
+                        unlock.page.souvenirName.isNotBlank()
+                    )
+                } else {
+                    assertNull(
+                        "${city.nameFa} stage ${level.cityStageNumber} must not unlock a page",
+                        unlock
+                    )
+                }
+
+                if (level.cityStageNumber == CityCatalog.STAGES_PER_CITY) {
+                    assertNotNull(
+                        "${city.nameFa}: finishing the city must award a golden plaque",
+                        unlock?.plaqueText
+                    )
+                } else {
+                    assertNull(
+                        "${city.nameFa}: the plaque may only be awarded on the last stage",
+                        unlock?.plaqueText
+                    )
+                }
+            }
+
+            val souvenir = StoryCatalog.souvenirFor(city.key)
+            assertTrue("${city.nameFa}: chest souvenir is missing", souvenir.first.isNotBlank())
+        }
+    }
+
+    @Test
+    fun levelsHaveUniqueIdsAndFormableWords() {
         GameRepository.levels.forEach { level ->
             assertTrue("Level ${level.id} has no target words", level.targetWords.isNotEmpty())
 
@@ -36,6 +131,30 @@ class GameDataValidationTest {
                 "Level ${level.id} contains duplicate words",
                 allWords.size,
                 allWords.toSet().size
+            )
+        }
+    }
+
+    @Test
+    fun proverbCatalogueIsLargeAndUnique() {
+        val proverbs = GameRepository.proverbs
+        assertTrue("Expected at least 500 proverbs, found ${proverbs.size}", proverbs.size >= 500)
+        assertEquals(
+            "Proverb ids must be unique (the factory counter assigns them)",
+            proverbs.size,
+            proverbs.map { it.id }.toSet().size
+        )
+        assertEquals(
+            "Proverb texts must be unique",
+            proverbs.size,
+            proverbs.map { it.proverbFull }.toSet().size
+        )
+        proverbs.forEach { proverb ->
+            assertTrue("Proverb ${proverb.id} has no meaning", proverb.meaning.isNotBlank())
+            assertTrue("Proverb ${proverb.id} has no emoji clue", proverb.emojiClue.isNotBlank())
+            assertTrue(
+                "Proverb ${proverb.id}: the masked text reveals the answer '${proverb.missingWord}'",
+                proverb.maskedProverb.split(' ').none { it == proverb.missingWord }
             )
         }
     }

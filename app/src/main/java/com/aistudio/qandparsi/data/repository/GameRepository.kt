@@ -2,15 +2,18 @@ package com.aistudio.qandparsi.data.repository
 
 import com.aistudio.qandparsi.data.model.DailyChallenge
 import com.aistudio.qandparsi.data.model.GameLevel
+import com.aistudio.qandparsi.data.model.GemExchangeOffer
 import com.aistudio.qandparsi.data.model.LeaderboardUser
 import com.aistudio.qandparsi.data.model.ProverbLevel
 import com.aistudio.qandparsi.data.model.ShopProduct
 import com.aistudio.qandparsi.data.model.WheelReward
+import com.aistudio.qandparsi.util.LetterScrambler
 
 object GameRepository {
 
-    // 35 Handcrafted Levels spanning 7 major Iranian tourist/cultural hubs
-    val levels: List<GameLevel> = listOf(
+    // 35 Handcrafted Levels spanning 7 major Iranian tourist/cultural hubs. They are kept as
+    // the first five stages of their city and the rest of the map is generated below.
+    private val handcraftedLevels: List<GameLevel> = listOf(
         // شهر ۱: تهران - کاخ گلستان و عمارت مسعودیه
         GameLevel(
             id = 1,
@@ -341,99 +344,14 @@ object GameRepository {
         )
     )
 
-    // 10 Persian Proverb Levels with thoroughly scrambled letter banks
-    val proverbs: List<ProverbLevel> = listOf(
-        ProverbLevel(
-            id = 1,
-            proverbFull = "آشپز که دو تا شد آش یا شور میشه یا بی‌نمک",
-            maskedProverb = "... که دو تا شد آش یا شور میشه یا بی‌نمک",
-            missingWord = "آشپز",
-            meaning = "وقتی در کاری چند نفر بدون هماهنگی دخالت کنند، کار خراب می‌شود.",
-            emojiClue = "👨‍🍳🍲🧂",
-            scrambledLetters = listOf('پ', 'م', 'ز', 'د', 'ش', 'ک', 'آ', 'ت', 'ر', 'ب')
-        ),
-        ProverbLevel(
-            id = 2,
-            proverbFull = "با یک گل بهار نمیشه",
-            maskedProverb = "با یک گل ... نمیشه",
-            missingWord = "بهار",
-            meaning = "یک نشانه کوچک برای رخ دادن یک اتفاق بزرگ کافی نیست و تلاش مداوم لازم است.",
-            emojiClue = "🌸🌱☀️",
-            scrambledLetters = listOf('ه', 'ر', 'س', 'ب', 'م', 'ا', 'ک', 'ت', 'د', 'ل')
-        ),
-        ProverbLevel(
-            id = 3,
-            proverbFull = "قطره قطره جمع گردد وانگهی دریا شود",
-            maskedProverb = "قطره قطره جمع گردد وانگهی ... شود",
-            missingWord = "دریا",
-            meaning = "پس‌انداز و تلاش‌های اندک اندک در طول زمان به نتایج بزرگی منجر می‌شود.",
-            emojiClue = "💧🌊✨",
-            scrambledLetters = listOf('ی', 'س', 'د', 'م', 'ر', 'ک', 'ا', 'ت', 'ن', 'ب')
-        ),
-        ProverbLevel(
-            id = 4,
-            proverbFull = "جوجه رو آخر پاییز می‌شمارند",
-            maskedProverb = "جوجه رو آخر ... می‌شمارند",
-            missingWord = "پاییز",
-            meaning = "نباید قبل از اتمام کار و دیدن نتیجه نهایی، مغرور شد یا قضاوت کرد.",
-            emojiClue = "🐣🍂🍁",
-            scrambledLetters = listOf('ی', 'ب', 'ا', 'ز', 'ه', 'پ', 'ر', 'ی', 'س', 'ت')
-        ),
-        ProverbLevel(
-            id = 5,
-            proverbFull = "دست بالای دست بسیار است",
-            maskedProverb = "دست بالای ... بسیار است",
-            missingWord = "دست",
-            meaning = "هر چقدر هم در کاری توانا باشی، ممکن است کسی از تو ماهرتر پیدا شود؛ پس باید فروتن بود.",
-            emojiClue = "✋🌟👑",
-            scrambledLetters = listOf('س', 'م', 'ت', 'ب', 'د', 'ر', 'ک', 'ن', 'ل', 'پ')
-        ),
-        ProverbLevel(
-            id = 6,
-            proverbFull = "شتر دیدی ندیدی",
-            maskedProverb = "شتر دیدی ...",
-            missingWord = "ندیدی",
-            meaning = "حفظ اسرار و خودداری از دخالت و سخن‌چینی در مسائل دیگران.",
-            emojiClue = "🐫🙈🤐",
-            scrambledLetters = listOf('د', 'ک', 'ی', 'م', 'ن', 'ب', 'د', 'س', 'ی', 'ت')
-        ),
-        ProverbLevel(
-            id = 7,
-            proverbFull = "کوه به کوه نمیرسه آدم به آدم میرسه",
-            maskedProverb = "کوه به کوه نمیرسه ... به آدم میرسه",
-            missingWord = "آدم",
-            meaning = "انسان‌ها هر چقدر هم از هم دور باشند روزی دوباره گذارشان به هم خواهد افتاد.",
-            emojiClue = "⛰️🚶‍♂️🤝",
-            scrambledLetters = listOf('د', 'س', 'آ', 'ر', 'م', 'ت', 'ن', 'ب', 'ک', 'ل')
-        ),
-        ProverbLevel(
-            id = 8,
-            proverbFull = "مارگزیده از ریسمان سیاه و سفید می‌ترسه",
-            maskedProverb = "مارگزیده از ... سیاه و سفید می‌ترسه",
-            missingWord = "ریسمان",
-            meaning = "کسی که از چیزی ضربه خورده حتی از شبیه آن هم احتیاط می‌کند.",
-            emojiClue = "🐍🧵😨",
-            scrambledLetters = listOf('س', 'ت', 'ر', 'ک', 'ی', 'ب', 'م', 'ن', 'ا', 'د')
-        ),
-        ProverbLevel(
-            id = 9,
-            proverbFull = "فلفل نبین چه ریزه بشکن ببین چه تیزه",
-            maskedProverb = "فلفل نبین چه ریزه بشکن ببین چه ...",
-            missingWord = "تیزه",
-            meaning = "نباید افراد را از روی جثه یا ظاهر کوچک قضاوت کرد.",
-            emojiClue = "🌶️🔥⚡",
-            scrambledLetters = listOf('ی', 'ب', 'ت', 'س', 'ز', 'ک', 'ه', 'م', 'ن', 'ر')
-        ),
-        ProverbLevel(
-            id = 10,
-            proverbFull = "ماهی رو هر وقت از آب بگیری تازه است",
-            maskedProverb = "ماهی رو هر وقت از آب بگیری ... است",
-            missingWord = "تازه",
-            meaning = "جلوگیری از ضرر و شروع کار درست در هر زمانی پسندیده و مغتنم است.",
-            emojiClue = "🐟🌊🎣",
-            scrambledLetters = listOf('ا', 'ک', 'ت', 'م', 'ز', 'س', 'ه', 'ب', 'ر', 'د')
-        )
-    )
+    // 150 cities × 20 stages = 3000 levels, with the handcrafted ones preserved.
+    val levels: List<GameLevel> = LevelCatalog.build(handcraftedLevels)
+
+    /** Levels grouped by city key, used by the map, the story milestones and the chests. */
+    val levelsByCity: Map<String, List<GameLevel>> = levels.groupBy { it.city }
+
+    // ضرب‌المثل‌ها در فایل‌های دادهٔ جداگانه نگهداری می‌شوند تا کاتالوگ به‌سادگی گسترش یابد.
+    val proverbs: List<ProverbLevel> = ProverbCatalog.proverbs
 
     // Cafe Bazaar Store Monetization Packages (بسته‌های اقتصادی بازار با قیمت‌های جذاب)
     val shopProducts: List<ShopProduct> = listOf(
@@ -488,6 +406,29 @@ object GameRepository {
             gems = 30,
             isVip = true,
             badgeText = "عضویت ویژه"
+        )
+    )
+
+    // صرافی قند پارسی: الماس‌ها را به سکه تبدیل کنید
+    val gemExchangeOffers: List<GemExchangeOffer> = listOf(
+        GemExchangeOffer(
+            id = "gem_exchange_small",
+            gemCost = 5,
+            coinReward = 200,
+            titleFa = "کیسه کوچک"
+        ),
+        GemExchangeOffer(
+            id = "gem_exchange_medium",
+            gemCost = 10,
+            coinReward = 500,
+            titleFa = "کیسه زرین",
+            isBestValue = true
+        ),
+        GemExchangeOffer(
+            id = "gem_exchange_large",
+            gemCost = 25,
+            coinReward = 1500,
+            titleFa = "خزانه شاهی"
         )
     )
 
@@ -614,10 +555,23 @@ object GameRepository {
     )
 
     fun todayChallenge(): DailyChallenge {
-        val dayOfYear = java.util.Calendar.getInstance().get(java.util.Calendar.DAY_OF_YEAR)
+        val calendar = java.util.Calendar.getInstance()
+        val dayOfYear = calendar.get(java.util.Calendar.DAY_OF_YEAR)
         val index = (dayOfYear - 1) % dailyChallenges.size
-        return dailyChallenges[index].copy(dateString = com.aistudio.qandparsi.util.PersianDate.today())
+        val base = dailyChallenges[index]
+        return base.copy(
+            dateString = com.aistudio.qandparsi.util.PersianDate.today(),
+            letters = scrambleLetters(base.letters, base.targetWords, dayOfYear)
+        )
     }
+
+    /**
+     * The letter banks used to be stored in the exact spelling order of the answer words
+     * (e.g. سفیر → س,ف,ی,ر,...), which gave the solution away. This guarantees a shuffled
+     * order that never contains any target word as a contiguous run of letters.
+     */
+    fun scrambleLetters(letters: List<Char>, targetWords: List<String>, seed: Int): List<Char> =
+        LetterScrambler.scramble(letters, targetWords, seed)
 
     // 7-Day 24-Hour Daily Login Bonus Rewards (پاداش ورود ۲۴ ساعته)
     val dailyLoginRewards: List<com.aistudio.qandparsi.data.model.DailyLoginReward> = listOf(

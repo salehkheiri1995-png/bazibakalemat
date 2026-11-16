@@ -9,7 +9,11 @@ data class GameLevel(
     val targetWords: List<String>,
     val bonusWords: List<String> = emptyList(),
     val rewardCoins: Int = 50,
-    val rewardGems: Int = 1
+    val rewardGems: Int = 1,
+    /** 1-based position of this level inside its city (used by the story milestones). */
+    val cityStageNumber: Int = 1,
+    /** How many stages the city has in total. */
+    val cityStageCount: Int = 5
 )
 
 data class ProverbLevel(
@@ -43,6 +47,15 @@ data class ShopProduct(
     val isBestValue: Boolean = false,
     val isVip: Boolean = false,
     val badgeText: String? = null
+)
+
+/** A gem → coin exchange offer shown in the Bazaar ("صرافی قند پارسی"). */
+data class GemExchangeOffer(
+    val id: String,
+    val gemCost: Int,
+    val coinReward: Int,
+    val titleFa: String,
+    val isBestValue: Boolean = false
 )
 
 data class Achievement(

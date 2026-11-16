@@ -7,6 +7,12 @@ object GameConfig {
     // Hint costs (coins)
     const val HINT_LETTER_COIN_COST = 50
     const val HINT_WORD_COIN_COST = 120
+    const val DAILY_HINT_COIN_COST = 40
+
+    // Premium (gem) sinks. Gems are the premium currency: every gem must be spendable.
+    const val MAGIC_FEATHER_GEM_COST = 2
+    const val EXTRA_SPIN_GEM_COST = 2
+    const val SECRET_CHEST_GEM_COST = 3
 
     // Rewards
     const val COINS_PER_TARGET_WORD = 25

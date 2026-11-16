@@ -93,6 +93,7 @@ class WordGameWheelComposeTest {
                         },
                         onHintLetter = {},
                         onHintWord = {},
+                        onMagicFeatherHint = {},
                         onNextLevel = {},
                         onBack = {},
                         onOpenStore = {},
@@ -241,6 +242,7 @@ class WordGameWheelComposeTest {
                             onSubmitWord = {},
                             onHintLetter = {},
                             onHintWord = {},
+                            onMagicFeatherHint = {},
                             onNextLevel = {},
                             onBack = {},
                             onOpenStore = {},
@@ -282,6 +284,7 @@ class WordGameWheelComposeTest {
                             lastWonReward = null,
                             onToggleSound = {},
                             onSpinWheel = {},
+                            onGemSpin = {},
                             onWatchAdForFreeSpin = {},
                             onDismissReward = {},
                             onBack = {},
@@ -308,6 +311,7 @@ class WordGameWheelComposeTest {
                             isAdsRemoved = false,
                             onToggleSound = {},
                             onSelectProduct = {},
+                            onExchangeGems = {},
                             onWatchAd = {},
                             onBack = {}
                         )

@@ -48,6 +48,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.aistudio.qandparsi.data.model.GemExchangeOffer
 import com.aistudio.qandparsi.data.model.ShopProduct
 import com.aistudio.qandparsi.data.repository.GameRepository
 import com.aistudio.qandparsi.ui.components.TopBarHeader
@@ -69,6 +70,7 @@ fun BazaarStoreScreen(
     isAdsRemoved: Boolean,
     onToggleSound: () -> Unit,
     onSelectProduct: (ShopProduct) -> Unit,
+    onExchangeGems: (GemExchangeOffer) -> Unit,
     onWatchAd: () -> Unit,
     onBack: () -> Unit
 ) {
@@ -202,6 +204,93 @@ fun BazaarStoreScreen(
                                 color = Color(0xFF00A651)
                             )
                         }
+                    }
+                }
+            }
+
+            // Gem exchange (صرافی قند پارسی) — the premium currency sink
+            item {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("gem_exchange_card"),
+                    shape = RoundedCornerShape(18.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "صرافی قند پارسی",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = GemBlue
+                            )
+                            Text(text = "💱", fontSize = 20.sp)
+                        }
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "الماس‌های خود را به سکه تبدیل کنید • موجودی: ${formatter.format(gems)} الماس",
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                        )
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        GameRepository.gemExchangeOffers.forEach { offer ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 4.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Button(
+                                    onClick = { onExchangeGems(offer) },
+                                    enabled = gems >= offer.gemCost,
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = if (offer.isBestValue) Color(0xFF7B1FA2) else GemBlue
+                                    ),
+                                    modifier = Modifier.testTag("gem_exchange_${offer.id}")
+                                ) {
+                                    Text(
+                                        text = "${formatter.format(offer.gemCost)} الماس",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White
+                                    )
+                                }
+                                Column(horizontalAlignment = Alignment.End) {
+                                    Text(
+                                        text = offer.titleFa,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text(
+                                        text = "← ${formatter.format(offer.coinReward)} سکه",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = CoinYellow
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "💎 الماس در شاه‌کلید جادویی (۲)، چرخش مجدد گردونه (۲) و صندوقچه شهر (۳) هم مصرف می‌شود.",
+                            fontSize = 10.sp,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        )
                     }
                 }
             }

@@ -16,8 +16,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -99,6 +101,8 @@ fun QandParsiApp(viewModel: GameViewModel) {
     val foundWords by viewModel.foundWords.collectAsState()
     val revealedIndices by viewModel.revealedLetterIndices.collectAsState()
     val isLevelWon by viewModel.isLevelWon.collectAsState()
+    val openedCityChests by viewModel.openedCityChests.collectAsState()
+    val storyUnlock by viewModel.storyUnlock.collectAsState()
 
     // Proverb game state
     val currentProverb by viewModel.currentProverb.collectAsState()
@@ -122,8 +126,11 @@ fun QandParsiApp(viewModel: GameViewModel) {
     val pendingBazaarPurchase by viewModel.pendingBazaarPurchase.collectAsState()
 
     // Daily challenge state
+    val dailyChallenge by viewModel.dailyChallenge.collectAsState()
     val dailyFoundWords by viewModel.dailyFoundWords.collectAsState()
     val dailySelectedIndices by viewModel.dailySelectedIndices.collectAsState()
+    val dailyRevealedIndices by viewModel.dailyRevealedIndices.collectAsState()
+    val showDailyTutorial by viewModel.showDailyTutorial.collectAsState()
     val isDailyWon by viewModel.isDailyWon.collectAsState()
 
     // Daily & Streak
@@ -218,11 +225,21 @@ fun QandParsiApp(viewModel: GameViewModel) {
                 ScreenRoute.FORTUNE_WHEEL
             )
             if (!isAdsRemoved && route !in gameplayRoutes) {
-                TapsellBannerAd(
+                // Edge-to-edge is enabled, so the banner must stay above the system navigation
+                // bar (gesture pill / 3-button nav). Without navigationBarsPadding the Tapsell
+                // banner is drawn underneath the system buttons and becomes unclickable.
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 4.dp)
-                )
+                        .navigationBarsPadding()
+                        .background(MaterialTheme.colorScheme.surface)
+                ) {
+                    TapsellBannerAd(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp)
+                    )
+                }
             }
         },
         snackbarHost = {
@@ -305,10 +322,13 @@ fun QandParsiApp(viewModel: GameViewModel) {
                             onSubmitWord = { viewModel.submitCurrentWord() },
                             onHintLetter = { viewModel.useHintRevealLetter() },
                             onHintWord = { viewModel.useHintRevealWord() },
+                            onMagicFeatherHint = { viewModel.useMagicFeatherHint() },
                             onNextLevel = { viewModel.goToNextLevel() },
                             onBack = { viewModel.handleBack() },
                             onOpenStore = { viewModel.navigateTo(ScreenRoute.BAZAAR_STORE) },
-                            onSmashPiggyBank = { viewModel.smashPiggyBank() }
+                            onSmashPiggyBank = { viewModel.smashPiggyBank() },
+                            storyUnlock = storyUnlock,
+                            onStoryDismissed = { viewModel.dismissStoryUnlock() }
                         )
                     }
 
@@ -339,7 +359,7 @@ fun QandParsiApp(viewModel: GameViewModel) {
 
                     ScreenRoute.DAILY_CHALLENGE -> {
                         DailyChallengeScreen(
-                            challenge = viewModel.dailyChallenge,
+                            challenge = dailyChallenge,
                             dailyStreak = dailyStreak,
                             coins = coins,
                             gems = gems,
@@ -347,11 +367,16 @@ fun QandParsiApp(viewModel: GameViewModel) {
                             isSoundEnabled = isSoundEnabled,
                             selectedIndices = dailySelectedIndices,
                             foundWords = dailyFoundWords,
+                            revealedIndices = dailyRevealedIndices,
                             isWon = isDailyWon,
+                            showTutorial = showDailyTutorial,
                             onToggleSound = { viewModel.toggleSound() },
                             onSelectLetter = { viewModel.selectDailyLetter(it) },
                             onClearSelection = { viewModel.clearDailySelection() },
                             onSubmit = { viewModel.submitDailyWord() },
+                            onShuffle = { viewModel.shuffleDailyLetters() },
+                            onHintLetter = { viewModel.useDailyHintLetter() },
+                            onDismissTutorial = { viewModel.dismissDailyTutorial() },
                             onBack = { viewModel.handleBack() },
                             onOpenStore = { viewModel.navigateTo(ScreenRoute.BAZAAR_STORE) }
                         )
@@ -385,6 +410,7 @@ fun QandParsiApp(viewModel: GameViewModel) {
                             lastWonReward = lastWheelReward,
                             onToggleSound = { viewModel.toggleSound() },
                             onSpinWheel = { viewModel.spinFortuneWheel() },
+                            onGemSpin = { viewModel.spinFortuneWheelWithGems() },
                             onWatchAdForFreeSpin = { viewModel.watchAdForFortuneSpin() },
                             onDismissReward = { viewModel.dismissWheelReward() },
                             onBack = { viewModel.handleBack() },
@@ -403,6 +429,7 @@ fun QandParsiApp(viewModel: GameViewModel) {
                             isAdsRemoved = isAdsRemoved,
                             onToggleSound = { viewModel.toggleSound() },
                             onSelectProduct = { viewModel.openBazaarPayment(it) },
+                            onExchangeGems = { viewModel.exchangeGems(it) },
                             onWatchAd = { viewModel.watchRewardedVideoAd() },
                             onBack = { viewModel.handleBack() }
                         )
@@ -418,7 +445,11 @@ fun QandParsiApp(viewModel: GameViewModel) {
                             onToggleSound = { viewModel.toggleSound() },
                             onSelectLevel = { viewModel.selectLevelFromMap(it) },
                             onBack = { viewModel.handleBack() },
-                            onOpenStore = { viewModel.navigateTo(ScreenRoute.BAZAAR_STORE) }
+                            onOpenStore = { viewModel.navigateTo(ScreenRoute.BAZAAR_STORE) },
+                            openedChests = openedCityChests,
+                            onOpenCityChest = { viewModel.openCityChest(it) },
+                            isLevelWon = isLevelWon,
+                            currentLevelId = currentLevel.id
                         )
                     }
                 }

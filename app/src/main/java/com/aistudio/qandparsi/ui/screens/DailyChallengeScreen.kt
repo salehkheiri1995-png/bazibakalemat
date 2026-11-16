@@ -24,6 +24,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Diamond
+import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.MonetizationOn
 import androidx.compose.material.icons.filled.Refresh
@@ -33,7 +34,9 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -49,6 +52,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.aistudio.qandparsi.GameConfig
 import com.aistudio.qandparsi.data.model.DailyChallenge
 import com.aistudio.qandparsi.ui.components.TopBarHeader
 import com.aistudio.qandparsi.ui.theme.CoinYellow
@@ -68,11 +72,16 @@ fun DailyChallengeScreen(
     isSoundEnabled: Boolean,
     selectedIndices: List<Int>,
     foundWords: Set<String>,
+    revealedIndices: Map<String, Set<Int>>,
     isWon: Boolean,
+    showTutorial: Boolean,
     onToggleSound: () -> Unit,
     onSelectLetter: (Int) -> Unit,
     onClearSelection: () -> Unit,
     onSubmit: () -> Unit,
+    onShuffle: () -> Unit,
+    onHintLetter: () -> Unit,
+    onDismissTutorial: () -> Unit,
     onBack: () -> Unit,
     onOpenStore: () -> Unit
 ) {
@@ -197,6 +206,41 @@ fun DailyChallengeScreen(
                 }
             }
 
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Daily progress bar (هدف روشن: چند درصد چالش کامل شده است)
+            val progress = if (challenge.targetWords.isEmpty()) 0f
+            else foundWords.size.toFloat() / challenge.targetWords.size
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = "پیشرفت امروز",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
+                    )
+                    Text(
+                        text = "${foundWords.size} از ${challenge.targetWords.size} کلمه (${(progress * 100).toInt()}٪)",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = GoldSecondary
+                    )
+                }
+                Spacer(modifier = Modifier.height(6.dp))
+                LinearProgressIndicator(
+                    progress = { progress },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(10.dp)
+                        .clip(RoundedCornerShape(5.dp)),
+                    color = Color(0xFF10B981),
+                    trackColor = MaterialTheme.colorScheme.surfaceVariant
+                )
+            }
+
             Spacer(modifier = Modifier.height(16.dp))
 
             // Target Words slots
@@ -207,6 +251,10 @@ fun DailyChallengeScreen(
             ) {
                 challenge.targetWords.forEach { word ->
                     val isFound = foundWords.contains(word)
+                    val revealed = revealedIndices[word] ?: emptySet()
+                    val visible = word.mapIndexed { idx, ch ->
+                        if (isFound || revealed.contains(idx)) ch.toString() else "•"
+                    }.joinToString("")
                     Surface(
                         modifier = Modifier.padding(horizontal = 4.dp),
                         shape = RoundedCornerShape(10.dp),
@@ -214,10 +262,10 @@ fun DailyChallengeScreen(
                         border = androidx.compose.foundation.BorderStroke(1.dp, if (isFound) GoldSecondary else Color(0xFF475569))
                     ) {
                         Text(
-                            text = if (isFound) word else "• ".repeat(word.length).trim(),
+                            text = visible,
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
-                            color = if (isFound) Color.White else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+                            color = if (isFound) Color.White else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f),
                             modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
                         )
                     }
@@ -315,6 +363,55 @@ fun DailyChallengeScreen(
                 }
             }
 
+            Spacer(modifier = Modifier.height(18.dp))
+
+            // Free shuffle + paid daily hint (coins are now spendable inside the challenge)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                OutlinedButton(
+                    onClick = onShuffle,
+                    enabled = !isWon,
+                    modifier = Modifier
+                        .weight(1f)
+                        .testTag("daily_shuffle_btn"),
+                    shape = RoundedCornerShape(14.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Refresh,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(text = "به‌هم‌ریختن حروف", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                }
+
+                Button(
+                    onClick = onHintLetter,
+                    enabled = !isWon,
+                    modifier = Modifier
+                        .weight(1f)
+                        .testTag("daily_hint_btn"),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF7B1FA2))
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Lightbulb,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                        tint = Color.White
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "راهنما (${com.aistudio.qandparsi.util.PersianText.toPersianDigits(GameConfig.DAILY_HINT_COIN_COST.toString())} سکه)",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                }
+            }
+
             if (isWon) {
                 Spacer(modifier = Modifier.height(24.dp))
                 Card(
@@ -331,6 +428,45 @@ fun DailyChallengeScreen(
                         Text(text = "🏆 چالش امروز با موفقیت کامل شد!", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(text = "+${challenge.rewardCoins} سکه و +${challenge.rewardGems} الماس به حساب شما واریز شد", fontSize = 12.sp, color = Color(0xFFFDE68A))
+                    }
+                }
+            }
+        }
+    }
+
+    // First-visit walkthrough (shown once, then remembered in SharedPreferences)
+    if (showTutorial) {
+        androidx.compose.ui.window.Dialog(onDismissRequest = onDismissTutorial) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(22.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(20.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(text = "🧩 چالش روزانه", fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, color = GoldSecondary)
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text(
+                        text = "حروف را به هم بچسبانید تا همه کلماتِ امروز را بسازید.\n\n" +
+                            "🔀 دکمه به‌هم‌ریختن، جای حروف را عوض می‌کند.\n" +
+                            "💡 راهنما یکی از حروف کلمه‌ی سخت را فاش می‌کند (یا از راهنمای رایگان استفاده می‌کند).\n\n" +
+                            "با کامل کردن هر روز، استریک شما بیشتر می‌شود.",
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f),
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Button(
+                        onClick = onDismissTutorial,
+                        shape = RoundedCornerShape(14.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = PersianTealPrimary),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(text = "شروع چالش", fontWeight = FontWeight.Bold, color = Color.White)
                     }
                 }
             }

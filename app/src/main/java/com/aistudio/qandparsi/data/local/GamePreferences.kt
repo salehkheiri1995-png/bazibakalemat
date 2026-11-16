@@ -31,6 +31,18 @@ class GamePreferences(context: Context) {
         private const val KEY_LOGIN_BONUS_DAY = "login_bonus_streak_day"
         private const val KEY_FREE_LETTER_HINTS = "powerup_free_letter_hints"
         private const val KEY_FREE_WORD_HINTS = "powerup_free_word_hints"
+        private const val KEY_DAILY_TUTORIAL_SEEN = "daily_challenge_tutorial_seen"
+        private const val KEY_OPENED_CITY_CHESTS = "opened_city_chests"
+        private const val KEY_SEEN_STORY_PAGES = "seen_story_pages"
+        private const val KEY_DATA_VERSION = "data_version"
+
+        /**
+         * Version 2 is the 150-city map (20 stages per city). Version 1 was the legacy
+         * 35-level map (5 stages for each of the first seven cities).
+         */
+        private const val DATA_VERSION = 2
+        private const val LEGACY_STAGES_PER_CITY = 5
+        private const val CURRENT_STAGES_PER_CITY = 20
     }
 
     var coins: Int
@@ -104,6 +116,55 @@ class GamePreferences(context: Context) {
     var freeWordHints: Int
         get() = prefs.getInt(KEY_FREE_WORD_HINTS, 0)
         set(value) = prefs.edit().putInt(KEY_FREE_WORD_HINTS, value.coerceAtLeast(0)).apply()
+
+    var hasSeenDailyTutorial: Boolean
+        get() = prefs.getBoolean(KEY_DAILY_TUTORIAL_SEEN, false)
+        set(value) = prefs.edit().putBoolean(KEY_DAILY_TUTORIAL_SEEN, value).apply()
+
+    /** Keys of the city chests the player already opened (one reward per city). */
+    var openedCityChests: Set<String>
+        get() = prefs.getStringSet(KEY_OPENED_CITY_CHESTS, emptySet())?.toSet() ?: emptySet()
+        set(value) = prefs.edit().putStringSet(KEY_OPENED_CITY_CHESTS, value.toSet()).apply()
+
+    /** Keys of the diary pages the player has already read. */
+    var seenStoryPages: Set<String>
+        get() = prefs.getStringSet(KEY_SEEN_STORY_PAGES, emptySet())?.toSet() ?: emptySet()
+        set(value) = prefs.edit().putStringSet(KEY_SEEN_STORY_PAGES, value.toSet()).apply()
+
+    fun markStoryPageSeen(pageKey: String) {
+        val current = seenStoryPages.toMutableSet()
+        if (current.add(pageKey)) {
+            seenStoryPages = current
+        }
+    }
+
+    var dataVersion: Int
+        get() = prefs.getInt(KEY_DATA_VERSION, 1)
+        private set(value) = prefs.edit().putInt(KEY_DATA_VERSION, value).apply()
+
+    init {
+        if (dataVersion < DATA_VERSION) {
+            migrateLegacyMapProgress()
+            dataVersion = DATA_VERSION
+        }
+    }
+
+    /**
+     * Keeps old players in the city they had reached: the legacy map had 5 stages per city,
+     * so level `n` becomes `city * 20 + stageWithinCity` on the new 20-stage map.
+     */
+    private fun migrateLegacyMapProgress() {
+        val legacyLevel = currentLevel
+        if (legacyLevel == 7 * LEGACY_STAGES_PER_CITY + 1) {
+            // The legacy map was fully cleared: continue with the first new city.
+            currentLevel = 7 * CURRENT_STAGES_PER_CITY + 1
+            return
+        }
+        if (legacyLevel <= 1 || legacyLevel > 7 * LEGACY_STAGES_PER_CITY) return
+        val cityIndex = (legacyLevel - 1) / LEGACY_STAGES_PER_CITY
+        val stageWithinCity = (legacyLevel - 1) % LEGACY_STAGES_PER_CITY + 1
+        currentLevel = cityIndex * CURRENT_STAGES_PER_CITY + stageWithinCity
+    }
 
     fun getFoundWords(levelId: Int): Set<String> {
         return prefs.getStringSet("$KEY_FOUND_WORDS_PREFIX$levelId", emptySet())?.toSet() ?: emptySet()

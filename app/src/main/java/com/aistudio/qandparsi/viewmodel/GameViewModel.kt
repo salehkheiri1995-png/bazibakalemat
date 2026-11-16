@@ -6,15 +6,19 @@ import androidx.lifecycle.viewModelScope
 import com.aistudio.qandparsi.data.local.GamePreferences
 import com.aistudio.qandparsi.data.model.DailyChallenge
 import com.aistudio.qandparsi.data.model.GameLevel
+import com.aistudio.qandparsi.data.model.GemExchangeOffer
 import com.aistudio.qandparsi.data.model.LeaderboardUser
 import com.aistudio.qandparsi.data.model.ProverbLevel
 import com.aistudio.qandparsi.data.model.ScreenRoute
 import com.aistudio.qandparsi.data.model.ShopProduct
 import com.aistudio.qandparsi.data.model.SoundType
+import com.aistudio.qandparsi.data.model.StoryUnlock
 import com.aistudio.qandparsi.data.model.WheelReward
 import com.aistudio.qandparsi.data.local.db.WordGameDatabase
+import com.aistudio.qandparsi.data.repository.CityCatalog
 import com.aistudio.qandparsi.data.repository.GameRepository
 import com.aistudio.qandparsi.data.repository.IWordGameRepository
+import com.aistudio.qandparsi.data.repository.StoryCatalog
 import com.aistudio.qandparsi.data.repository.WordGameRepository
 import com.aistudio.qandparsi.data.sound.SoundManager
 import com.aistudio.qandparsi.GameConfig
@@ -113,6 +117,13 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     private val _isLevelWon = MutableStateFlow(false)
     val isLevelWon: StateFlow<Boolean> = _isLevelWon.asStateFlow()
 
+    // --- Map, chests and the «راز طومار هفت اقلیم» story ---
+    private val _openedCityChests = MutableStateFlow(prefs.openedCityChests)
+    val openedCityChests: StateFlow<Set<String>> = _openedCityChests.asStateFlow()
+
+    private val _storyUnlock = MutableStateFlow<StoryUnlock?>(null)
+    val storyUnlock: StateFlow<StoryUnlock?> = _storyUnlock.asStateFlow()
+
     private val _toastMessage = MutableStateFlow<String?>(null)
     val toastMessage: StateFlow<String?> = _toastMessage.asStateFlow()
 
@@ -136,8 +147,16 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     val isProverbWon: StateFlow<Boolean> = _isProverbWon.asStateFlow()
 
     // Daily & Streak
-    val dailyChallenge: DailyChallenge = GameRepository.todayChallenge()
-    private val dailyDateKey: String = dailyChallenge.dateString
+    private val dailyChallengeData: DailyChallenge = GameRepository.todayChallenge()
+    private val _dailyChallenge = MutableStateFlow(dailyChallengeData)
+    val dailyChallenge: StateFlow<DailyChallenge> = _dailyChallenge.asStateFlow()
+    private val dailyDateKey: String = dailyChallengeData.dateString
+
+    private val _dailyRevealedIndices = MutableStateFlow<Map<String, Set<Int>>>(emptyMap())
+    val dailyRevealedIndices: StateFlow<Map<String, Set<Int>>> = _dailyRevealedIndices.asStateFlow()
+
+    private val _showDailyTutorial = MutableStateFlow(false)
+    val showDailyTutorial: StateFlow<Boolean> = _showDailyTutorial.asStateFlow()
     private val _dailyStreak = MutableStateFlow(prefs.dailyStreak)
     val dailyStreak: StateFlow<Int> = _dailyStreak.asStateFlow()
 
@@ -234,6 +253,9 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         if (route == ScreenRoute.FORTUNE_WHEEL) {
             checkDailyFreeSpin()
         }
+        if (route == ScreenRoute.DAILY_CHALLENGE && !prefs.hasSeenDailyTutorial) {
+            _showDailyTutorial.value = true
+        }
         if (route != _route.value) {
             // Keep the stack free of duplicates: re-navigating to an already-visited
             // route moves it to the front (mirrors back-stack behaviour in Compose).
@@ -262,6 +284,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         _selectedLetters.value = emptyList()
         _selectedLetterIndices.value = emptyList()
         _isLevelWon.value = false
+        _storyUnlock.value = null
 
         // Target words are stored in Room (single source of truth). Bonus words have no Room
         // column, so they remain in SharedPreferences.
@@ -376,25 +399,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
 
                     if (updated.size >= level.targetWords.size) {
                         // Level complete!
-                        _isLevelWon.value = true
-                        prefs.saveLevelStars(level.id, 3)
-                        soundManager.playSound(SoundType.LEVEL_WON)
-                        soundManager.vibrate(SoundType.LEVEL_WON)
-                        addCoins(level.rewardCoins)
-                        addGems(level.rewardGems)
-                        if (_currentLevelIndex.value < GameRepository.levels.size) {
-                            prefs.currentLevel = _currentLevelIndex.value + 1
-                        }
-                        viewModelScope.launch {
-                            wordGameRepository.completeLevel(
-                                levelId = level.id,
-                                stars = 3,
-                                score = 150,
-                                coinsEarned = level.rewardCoins,
-                                gemsEarned = level.rewardGems,
-                                totalLevelsCount = GameRepository.levels.size
-                            )
-                        }
+                        completeCurrentLevel(level)
                     }
                 }
             }
@@ -478,35 +483,10 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             _freeWordHints.value = updatedHints
             prefs.freeWordHints = updatedHints
             val target = uncompleted.first()
-            val updated = _foundWords.value + target
-            _foundWords.value = updated
-            viewModelScope.launch {
-                wordGameRepository.saveFoundWord(level.id, target)
-            }
             soundManager.playSound(SoundType.WORD_FOUND)
             soundManager.vibrate(SoundType.WORD_FOUND)
             showToast("از پاداش ورود: کلمه «$target» به رایگان فاش شد! 🔮")
-
-            if (updated.size >= level.targetWords.size && !_isLevelWon.value) {
-                _isLevelWon.value = true
-                soundManager.playSound(SoundType.LEVEL_WON)
-                soundManager.vibrate(SoundType.LEVEL_WON)
-                addCoins(level.rewardCoins)
-                addGems(level.rewardGems)
-                if (_currentLevelIndex.value < GameRepository.levels.size) {
-                    prefs.currentLevel = _currentLevelIndex.value + 1
-                }
-                viewModelScope.launch {
-                    wordGameRepository.completeLevel(
-                        levelId = level.id,
-                        stars = 3,
-                        score = 150,
-                        coinsEarned = level.rewardCoins,
-                        gemsEarned = level.rewardGems,
-                        totalLevelsCount = GameRepository.levels.size
-                    )
-                }
-            }
+            revealWordAsFound(target)
             return
         }
 
@@ -520,34 +500,79 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
 
         spendCoins(GameConfig.HINT_WORD_COIN_COST)
         val target = uncompleted.first()
+        soundManager.playSound(SoundType.WORD_FOUND)
+        soundManager.vibrate(SoundType.WORD_FOUND)
+        showToast("کلمه «$target» کامل فاش شد! 💡")
+        revealWordAsFound(target)
+    }
+
+    /**
+     * Premium hint: the "Magic Feather" reveals the hardest (longest) unfinished word for
+     * [GameConfig.MAGIC_FEATHER_GEM_COST] gems. This is the gem sink that guarantees premium
+     * currency is actually useful inside the word game.
+     */
+    fun useMagicFeatherHint() {
+        val level = _currentLevel.value
+        val uncompleted = level.targetWords.filter { !_foundWords.value.contains(it) }
+        if (uncompleted.isEmpty()) return
+
+        if (_gems.value < GameConfig.MAGIC_FEATHER_GEM_COST) {
+            soundManager.playSound(SoundType.ERROR)
+            soundManager.vibrate(SoundType.ERROR)
+            showToast("الماس کافی ندارید! شاه‌کلید ${GameConfig.MAGIC_FEATHER_GEM_COST} الماس است.")
+            navigateTo(ScreenRoute.BAZAAR_STORE)
+            return
+        }
+
+        spendGems(GameConfig.MAGIC_FEATHER_GEM_COST)
+        val target = uncompleted.maxByOrNull { it.length } ?: uncompleted.first()
+        soundManager.playSound(SoundType.WORD_FOUND)
+        soundManager.vibrate(SoundType.WORD_FOUND)
+        showToast("🪶 شاه‌کلید جادویی: سخت‌ترین کلمه «$target» فاش شد!")
+        revealWordAsFound(target)
+    }
+
+    /** Marks [target] as found, saves it, and completes the level when it was the last word. */
+    private fun revealWordAsFound(target: String) {
+        val level = _currentLevel.value
         val updated = _foundWords.value + target
         _foundWords.value = updated
         viewModelScope.launch {
             wordGameRepository.saveFoundWord(level.id, target)
         }
-        soundManager.playSound(SoundType.WORD_FOUND)
-        soundManager.vibrate(SoundType.WORD_FOUND)
-        showToast("کلمه «$target» کامل فاش شد! 💡")
-
         if (updated.size >= level.targetWords.size && !_isLevelWon.value) {
-            _isLevelWon.value = true
-            soundManager.playSound(SoundType.LEVEL_WON)
-            soundManager.vibrate(SoundType.LEVEL_WON)
-            addCoins(level.rewardCoins)
-            addGems(level.rewardGems)
-            if (_currentLevelIndex.value < GameRepository.levels.size) {
-                prefs.currentLevel = _currentLevelIndex.value + 1
-            }
-            viewModelScope.launch {
-                wordGameRepository.completeLevel(
-                    levelId = level.id,
-                    stars = 3,
-                    score = 150,
-                    coinsEarned = level.rewardCoins,
-                    gemsEarned = level.rewardGems,
-                    totalLevelsCount = GameRepository.levels.size
-                )
-            }
+            completeCurrentLevel(level)
+        }
+    }
+
+    /** Single place that awards a finished level (coins, gems, stars, persisted progress). */
+    private fun completeCurrentLevel(level: GameLevel) {
+        _isLevelWon.value = true
+        prefs.saveLevelStars(level.id, 3)
+        soundManager.playSound(SoundType.LEVEL_WON)
+        soundManager.vibrate(SoundType.LEVEL_WON)
+        addCoins(level.rewardCoins)
+        addGems(level.rewardGems)
+        if (level.cityStageNumber == level.cityStageCount) {
+            // Completing a whole city also hangs its golden plaque and pays a city bonus.
+            addCoins(250)
+            addGems(5)
+            val cityName = CityCatalog.cityFor(level.city)?.nameFa ?: level.cityNameFa
+            showToast("🏅 شهر $cityName فتح شد: +۲۵۰ سکه و +۵ الماس")
+        }
+        if (_currentLevelIndex.value < GameRepository.levels.size) {
+            prefs.currentLevel = _currentLevelIndex.value + 1
+        }
+        unlockStoryFor(level)
+        viewModelScope.launch {
+            wordGameRepository.completeLevel(
+                levelId = level.id,
+                stars = 3,
+                score = 150,
+                coinsEarned = level.rewardCoins,
+                gemsEarned = level.rewardGems,
+                totalLevelsCount = GameRepository.levels.size
+            )
         }
     }
 
@@ -570,6 +595,68 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         _currentLevelIndex.value = levelId
         loadLevelState(levelId)
         navigateTo(ScreenRoute.WORD_GAME)
+    }
+
+    // --- City chests and story ---
+    /**
+     * True when the player has cleared every stage of [cityKey]. The very last city has no
+     * "next" level, so its final stage also counts as completed while it is being won.
+     */
+    fun isCityCompleted(cityKey: String): Boolean {
+        val lastLevel = GameRepository.levelsByCity[cityKey]?.lastOrNull() ?: return false
+        val unlocked = _currentLevelIndex.value
+        if (unlocked > lastLevel.id) return true
+        return unlocked == lastLevel.id &&
+            _currentLevel.value.id == lastLevel.id &&
+            _isLevelWon.value
+    }
+
+    /** The chest is available as soon as the first stage of the city is unlocked. */
+    private fun isCityUnlocked(cityKey: String): Boolean {
+        val firstLevel = GameRepository.levelsByCity[cityKey]?.firstOrNull() ?: return false
+        return firstLevel.id <= _currentLevelIndex.value
+    }
+
+    /** Opens the once-per-city chest for [GameConfig.SECRET_CHEST_GEM_COST] gems. */
+    fun openCityChest(cityKey: String) {
+        if (_openedCityChests.value.contains(cityKey)) {
+            showToast("این صندوق قبلاً باز شده است.")
+            return
+        }
+        if (!isCityUnlocked(cityKey)) {
+            showToast("این شهر هنوز قفل است. نخست مرحلهٔ نخست آن را باز کن.")
+            return
+        }
+        if (_gems.value < GameConfig.SECRET_CHEST_GEM_COST) {
+            soundManager.playSound(SoundType.ERROR)
+            soundManager.vibrate(SoundType.ERROR)
+            showToast("الماس کافی ندارید! صندوق مخفی ${GameConfig.SECRET_CHEST_GEM_COST} الماس می‌خواهد.")
+            return
+        }
+
+        spendGems(GameConfig.SECRET_CHEST_GEM_COST)
+        addCoins(300)
+        val updated = _openedCityChests.value + cityKey
+        _openedCityChests.value = updated
+        prefs.openedCityChests = updated
+        soundManager.playSound(SoundType.COIN_EARNED)
+        soundManager.vibrate(SoundType.COIN_EARNED)
+        val cityName = CityCatalog.cityFor(cityKey)?.nameFa ?: "این شهر"
+        val souvenir = StoryCatalog.souvenirFor(cityKey)
+        showToast("🎁 صندوق $cityName باز شد: ۳۰۰ سکه و ${souvenir.first} ${souvenir.second}")
+    }
+
+    /** Called when the victory dialog closes, so the story block does not reappear. */
+    fun dismissStoryUnlock() {
+        _storyUnlock.value = null
+    }
+
+    private fun unlockStoryFor(level: GameLevel) {
+        val unlock = StoryCatalog.unlockFor(level) ?: return
+        val pageKey = "${unlock.page.cityKey}_${unlock.page.milestone}"
+        if (prefs.seenStoryPages.contains(pageKey)) return
+        prefs.markStoryPageSeen(pageKey)
+        _storyUnlock.value = unlock
     }
 
     private fun getScrambledProverbLetters(level: ProverbLevel): List<Char> {
@@ -791,6 +878,20 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         _lastWheelReward.value = null
     }
 
+    /** Repeat spin paid with the premium currency (2 gems) instead of watching an ad. */
+    fun spinFortuneWheelWithGems() {
+        if (_isSpinning.value) return
+        if (_gems.value < GameConfig.EXTRA_SPIN_GEM_COST) {
+            soundManager.playSound(SoundType.ERROR)
+            soundManager.vibrate(SoundType.ERROR)
+            showToast("الماس کافی ندارید! چرخش مجدد ${GameConfig.EXTRA_SPIN_GEM_COST} الماس است.")
+            return
+        }
+        spendGems(GameConfig.EXTRA_SPIN_GEM_COST)
+        showToast("${GameConfig.EXTRA_SPIN_GEM_COST} الماس برای چرخش مجدد مصرف شد ✨")
+        spinFortuneWheel(isFreeSpinFromAd = true)
+    }
+
     // --- Reward Ads (Tapsell) ---
     // The ViewModel only records *why* an ad is needed. MainActivity shows the real Tapsell
     // rewarded video and calls back here. No coins/gems are granted from a timer or fake flow.
@@ -848,22 +949,29 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
 
     // --- Daily Challenge ---
     private fun loadDailyChallengeState() {
-        val canonicalByNormalized = dailyChallenge.targetWords.associateBy { PersianText.normalize(it) }
+        val canonicalByNormalized = dailyChallengeData.targetWords.associateBy { PersianText.normalize(it) }
         val stored = prefs.getDailyFoundWords(dailyDateKey)
         val saved = stored.mapNotNull { canonicalByNormalized[PersianText.normalize(it)] }.toSet()
         if (saved != stored) prefs.replaceDailyFoundWords(dailyDateKey, saved)
         _dailyFoundWords.value = saved
-        _isDailyWon.value = saved.size >= dailyChallenge.targetWords.size
+        _isDailyWon.value = saved.size >= dailyChallengeData.targetWords.size
         _dailySelectedIndices.value = emptyList()
+        _dailyRevealedIndices.value = emptyMap()
         // Recover a completed-but-unclaimed challenge (e.g. the app was killed right after
         // the last word). The reward is guarded by the per-date key, so this can run safely.
         if (_isDailyWon.value) grantDailyChallengeReward()
     }
 
+    fun dismissDailyTutorial() {
+        prefs.hasSeenDailyTutorial = true
+        _showDailyTutorial.value = false
+    }
+
     fun selectDailyLetter(index: Int) {
-        if (index !in dailyChallenge.letters.indices) return
+        val letters = _dailyChallenge.value.letters
+        if (index !in letters.indices) return
         if (_dailySelectedIndices.value.contains(index)) return
-        if (_dailySelectedIndices.value.size >= dailyChallenge.letters.size) return
+        if (_dailySelectedIndices.value.size >= letters.size) return
         soundManager.playSound(SoundType.LETTER_PICK)
         soundManager.vibrate(SoundType.LETTER_PICK)
         _dailySelectedIndices.value = _dailySelectedIndices.value + index
@@ -875,14 +983,68 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         _dailySelectedIndices.value = emptyList()
     }
 
+    /** Free letter reshuffle for the daily challenge. The new order never spells a target. */
+    fun shuffleDailyLetters() {
+        if (_isDailyWon.value) return
+        soundManager.playSound(SoundType.CLICK)
+        soundManager.vibrate(SoundType.CLICK)
+        _dailySelectedIndices.value = emptyList()
+        val current = _dailyChallenge.value
+        val seed = System.currentTimeMillis().toInt()
+        _dailyChallenge.value = current.copy(
+            letters = GameRepository.scrambleLetters(current.letters, current.targetWords, seed)
+        )
+    }
+
+    /**
+     * Daily hint: reveals one letter of the hardest unfinished word. Free hints are used first,
+     * otherwise the move costs [GameConfig.DAILY_HINT_COIN_COST] coins.
+     */
+    fun useDailyHintLetter() {
+        if (_isDailyWon.value) return
+        val challenge = _dailyChallenge.value
+        val uncompleted = challenge.targetWords.filter { !_dailyFoundWords.value.contains(it) }
+        if (uncompleted.isEmpty()) return
+        val target = uncompleted.maxByOrNull { it.length } ?: return
+        val revealed = _dailyRevealedIndices.value[target].orEmpty()
+        val candidates = target.indices.filter { it !in revealed }
+        if (candidates.isEmpty()) {
+            showToast("همه حروف «$target» فاش شده‌اند؛ حالا آن را بسازید!")
+            return
+        }
+
+        if (_freeLetterHints.value > 0) {
+            val updated = _freeLetterHints.value - 1
+            _freeLetterHints.value = updated
+            prefs.freeLetterHints = updated
+        } else {
+            if (_coins.value < GameConfig.DAILY_HINT_COIN_COST) {
+                soundManager.playSound(SoundType.ERROR)
+                soundManager.vibrate(SoundType.ERROR)
+                showToast("سکه کافی ندارید! راهنمای روزانه ${GameConfig.DAILY_HINT_COIN_COST} سکه است.")
+                navigateTo(ScreenRoute.BAZAAR_STORE)
+                return
+            }
+            spendCoins(GameConfig.DAILY_HINT_COIN_COST)
+        }
+
+        val revealIndex = candidates.random()
+        _dailyRevealedIndices.value =
+            _dailyRevealedIndices.value + (target to (revealed + revealIndex))
+        soundManager.playSound(SoundType.COIN_EARNED)
+        soundManager.vibrate(SoundType.COIN_EARNED)
+        showToast("حرف «${target[revealIndex]}» در کلمه ${target.length} حرفی فاش شد! 💡")
+    }
+
     fun submitDailyWord() {
         val indices = _dailySelectedIndices.value
-        val word = indices.joinToString("") { dailyChallenge.letters[it].toString() }
+        val challenge = _dailyChallenge.value
+        val word = indices.joinToString("") { challenge.letters[it].toString() }
         val normalized = PersianText.normalize(word)
         _dailySelectedIndices.value = emptyList()
         if (normalized.isEmpty()) return
 
-        val target = dailyChallenge.targetWords.firstOrNull { PersianText.normalize(it) == normalized }
+        val target = challenge.targetWords.firstOrNull { PersianText.normalize(it) == normalized }
         when {
             target == null -> {
                 soundManager.playSound(SoundType.ERROR)
@@ -901,7 +1063,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                 soundManager.playSound(SoundType.WORD_FOUND)
                 soundManager.vibrate(SoundType.WORD_FOUND)
                 addCoins(GameConfig.COINS_PER_DAILY_WORD)
-                if (updated.size >= dailyChallenge.targetWords.size) {
+                if (updated.size >= challenge.targetWords.size) {
                     _isDailyWon.value = true
                     grantDailyChallengeReward()
                 } else {
@@ -914,8 +1076,8 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     private fun grantDailyChallengeReward() {
         if (prefs.lastDailyChallengeRewardDate == dailyDateKey) return
         prefs.lastDailyChallengeRewardDate = dailyDateKey
-        addCoins(dailyChallenge.rewardCoins)
-        addGems(dailyChallenge.rewardGems)
+        addCoins(dailyChallengeData.rewardCoins)
+        addGems(dailyChallengeData.rewardGems)
         if (prefs.lastDailyDate != dailyDateKey) {
             val previousDate = prefs.lastDailyDate
             prefs.lastDailyDate = dailyDateKey
@@ -926,7 +1088,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         }
         soundManager.playSound(SoundType.LEVEL_WON)
         soundManager.vibrate(SoundType.LEVEL_WON)
-        showToast("🏆 چالش امروز کامل شد! +${dailyChallenge.rewardCoins} سکه و +${dailyChallenge.rewardGems} الماس")
+        showToast("🏆 چالش امروز کامل شد! +${dailyChallengeData.rewardCoins} سکه و +${dailyChallengeData.rewardGems} الماس")
     }
 
     // --- Cafe Bazaar In-App Store ---
@@ -1146,6 +1308,29 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         val updated = _coins.value + amount
         _coins.value = updated
         prefs.coins = updated
+    }
+
+    /** Exchange premium gems for coins ("صرافی قند پارسی"). */
+    fun exchangeGems(offer: GemExchangeOffer) {
+        if (_gems.value < offer.gemCost) {
+            soundManager.playSound(SoundType.ERROR)
+            soundManager.vibrate(SoundType.ERROR)
+            showToast("الماس کافی ندارید! برای این بسته ${offer.gemCost} الماس لازم است.")
+            return
+        }
+        spendGems(offer.gemCost)
+        addCoins(offer.coinReward)
+        soundManager.playSound(SoundType.COIN_EARNED)
+        soundManager.vibrate(SoundType.COIN_EARNED)
+        showToast("💱 ${offer.gemCost} الماس به ${offer.coinReward} سکه تبدیل شد!")
+    }
+
+    private fun spendGems(amount: Int): Boolean {
+        if (_gems.value < amount) return false
+        val updated = _gems.value - amount
+        _gems.value = updated
+        prefs.gems = updated
+        return true
     }
 
     private fun spendCoins(amount: Int) {

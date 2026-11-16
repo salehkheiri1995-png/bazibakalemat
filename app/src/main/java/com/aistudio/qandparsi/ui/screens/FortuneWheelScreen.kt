@@ -67,7 +67,9 @@ import androidx.compose.ui.window.Dialog
 import com.aistudio.qandparsi.data.model.WheelReward
 import com.aistudio.qandparsi.data.repository.GameRepository
 import com.aistudio.qandparsi.ui.components.TopBarHeader
+import com.aistudio.qandparsi.GameConfig
 import com.aistudio.qandparsi.ui.theme.CoinYellow
+import com.aistudio.qandparsi.ui.theme.GemBlue
 import com.aistudio.qandparsi.ui.theme.GoldDark
 import com.aistudio.qandparsi.ui.theme.GoldSecondary
 import com.aistudio.qandparsi.ui.theme.PersianTealDark
@@ -90,6 +92,7 @@ fun FortuneWheelScreen(
     lastWonReward: WheelReward?,
     onToggleSound: () -> Unit,
     onSpinWheel: () -> Unit,
+    onGemSpin: () -> Unit,
     onWatchAdForFreeSpin: () -> Unit,
     onDismissReward: () -> Unit,
     onBack: () -> Unit,
@@ -547,6 +550,28 @@ fun FortuneWheelScreen(
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Icon(imageVector = Icons.Default.Videocam, contentDescription = null, tint = Color(0xFF00A651))
+                        }
+                    }
+
+                    // Paid extra spin with the premium currency (gems)
+                    OutlinedButton(
+                        onClick = onGemSpin,
+                        enabled = !isSpinning,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp)
+                            .testTag("gem_spin_btn"),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = GemBlue)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "چرخش با ${GameConfig.EXTRA_SPIN_GEM_COST} الماس",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(text = "💎", fontSize = 14.sp)
                         }
                     }
                 }

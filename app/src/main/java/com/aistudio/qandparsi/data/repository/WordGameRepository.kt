@@ -63,36 +63,47 @@ class WordGameRepository(
     override suspend fun initializeDatabaseIfEmpty(defaultLevels: List<GameLevel>) = withContext(ioDispatcher) {
         initMutex.withLock {
             val count = levelDao.getLevelsCount()
-            if (count == 0) {
-                val entities = defaultLevels.map { level ->
-                    LevelEntity(
-                        levelId = level.id,
-                        cityId = level.city,
-                        cityNameFa = level.cityNameFa,
-                        stageNumber = level.stageNumber,
-                        lettersRaw = level.letters.joinToString(","),
-                        targetWordsRaw = level.targetWords.joinToString(","),
-                        bonusWordsRaw = level.bonusWords.joinToString(","),
-                        rewardCoins = level.rewardCoins,
-                        rewardGems = level.rewardGems
-                    )
+            when {
+                count == 0 -> {
+                    levelDao.insertLevels(defaultLevels.map { it.toLevelEntity() })
+                    playerProgressDao.insertProgressList(defaultLevels.map { it.toInitialProgress() })
                 }
-                levelDao.insertLevels(entities)
-
-                val initialProgress = defaultLevels.map { level ->
-                    PlayerProgressEntity(
-                        levelId = level.id,
-                        isUnlocked = level.id == 1,
-                        isCompleted = false,
-                        starsEarned = 0,
-                        foundWordsRaw = "",
-                        highScore = 0
-                    )
+                count != defaultLevels.size -> {
+                    // Map expansion (35 → 3000 levels): upsert the new levels and add the
+                    // missing progress rows without touching the player's existing progress.
+                    levelDao.insertLevels(defaultLevels.map { it.toLevelEntity() })
+                    val knownLevelIds = playerProgressDao.getAllProgressLevelIds().toSet()
+                    val missingProgress = defaultLevels
+                        .filterNot { it.id in knownLevelIds }
+                        .map { it.toInitialProgress() }
+                    if (missingProgress.isNotEmpty()) {
+                        playerProgressDao.insertProgressList(missingProgress)
+                    }
                 }
-                playerProgressDao.insertProgressList(initialProgress)
             }
         }
     }
+
+    private fun GameLevel.toLevelEntity(): LevelEntity = LevelEntity(
+        levelId = id,
+        cityId = city,
+        cityNameFa = cityNameFa,
+        stageNumber = stageNumber,
+        lettersRaw = letters.joinToString(","),
+        targetWordsRaw = targetWords.joinToString(","),
+        bonusWordsRaw = bonusWords.joinToString(","),
+        rewardCoins = rewardCoins,
+        rewardGems = rewardGems
+    )
+
+    private fun GameLevel.toInitialProgress(): PlayerProgressEntity = PlayerProgressEntity(
+        levelId = id,
+        isUnlocked = id == 1,
+        isCompleted = false,
+        starsEarned = 0,
+        foundWordsRaw = "",
+        highScore = 0
+    )
 
     override fun getLevelById(levelId: Int): Flow<LevelEntity?> =
         levelDao.getLevelById(levelId).flowOn(ioDispatcher)

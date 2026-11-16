@@ -81,7 +81,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import com.aistudio.qandparsi.GameConfig
 import com.aistudio.qandparsi.data.model.GameLevel
+import com.aistudio.qandparsi.data.model.StoryUnlock
 import com.aistudio.qandparsi.ui.components.TopBarHeader
 import com.aistudio.qandparsi.ui.theme.CoinYellow
 import com.aistudio.qandparsi.ui.theme.GoldDark
@@ -117,10 +119,13 @@ fun WordGameScreen(
     onSubmitWord: () -> Unit,
     onHintLetter: () -> Unit,
     onHintWord: () -> Unit,
+    onMagicFeatherHint: () -> Unit,
     onNextLevel: () -> Unit,
     onBack: () -> Unit,
     onOpenStore: () -> Unit,
-    onSmashPiggyBank: () -> Unit
+    onSmashPiggyBank: () -> Unit,
+    storyUnlock: StoryUnlock? = null,
+    onStoryDismissed: () -> Unit = {}
 ) {
     val scrollState = rememberScrollState()
 
@@ -373,6 +378,37 @@ fun WordGameScreen(
                         onClick = onHintWord
                     )
                 }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Premium hint: Magic Feather reveals the hardest word for 2 gems.
+                Button(
+                    onClick = onMagicFeatherHint,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp)
+                        .testTag("magic_feather_btn"),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF7B1FA2))
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(text = "🪶", fontSize = 18.sp)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "شاه‌کلید جادویی • فاش کردن سخت‌ترین کلمه",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "${GameConfig.MAGIC_FEATHER_GEM_COST} الماس",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Color(0xFF80DEEA)
+                        )
+                    }
+                }
             }
         }
 
@@ -391,6 +427,7 @@ fun WordGameScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .verticalScroll(rememberScrollState())
                             .padding(24.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
@@ -452,8 +489,63 @@ fun WordGameScreen(
 
                         Spacer(modifier = Modifier.height(20.dp))
 
+                        if (storyUnlock != null) {
+                            Surface(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .testTag("story_unlock_card"),
+                                shape = RoundedCornerShape(16.dp),
+                                color = PersianTealPrimary.copy(alpha = 0.09f)
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(14.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Text(
+                                        text = "📜 ${storyUnlock.page.title}",
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = PersianTealPrimary
+                                    )
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                    Text(
+                                        text = storyUnlock.page.body,
+                                        fontSize = 12.sp,
+                                        lineHeight = 19.sp,
+                                        textAlign = TextAlign.Center,
+                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f)
+                                    )
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text(
+                                        text = "${storyUnlock.page.souvenirEmoji} سوغات " +
+                                            "${storyUnlock.page.cityNameFa}: " +
+                                            storyUnlock.page.souvenirName,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = GoldSecondary
+                                    )
+                                    if (storyUnlock.plaqueText != null) {
+                                        Spacer(modifier = Modifier.height(6.dp))
+                                        Text(
+                                            text = "🏅 ${storyUnlock.plaqueText}",
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            textAlign = TextAlign.Center,
+                                            color = GoldSecondary
+                                        )
+                                    }
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(16.dp))
+                        }
+
                         Button(
-                            onClick = onNextLevel,
+                            onClick = {
+                                onStoryDismissed()
+                                onNextLevel()
+                            },
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(50.dp)
@@ -467,7 +559,10 @@ fun WordGameScreen(
                         Spacer(modifier = Modifier.height(8.dp))
 
                         OutlinedButton(
-                            onClick = onBack,
+                            onClick = {
+                                onStoryDismissed()
+                                onBack()
+                            },
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(14.dp)
                         ) {
