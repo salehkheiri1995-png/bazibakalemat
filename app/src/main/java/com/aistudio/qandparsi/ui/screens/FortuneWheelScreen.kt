@@ -508,52 +508,31 @@ fun FortuneWheelScreen(
                         }
                     }
                 } else {
-                    // Secondary Spin with 50 Coins Button
+                    // After the daily free spin is used, watching a rewarded ad is the main way
+                    // to earn another spin (the unlimited coin-spin has been removed).
                     Button(
-                        onClick = onSpinWheel,
+                        onClick = onWatchAdForFreeSpin,
                         enabled = !isSpinning,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(52.dp)
-                            .testTag("spin_wheel_button"),
+                            .height(54.dp)
+                            .testTag("free_spin_ad_btn"),
                         shape = RoundedCornerShape(16.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = PersianTealPrimary)
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
-                                text = if (isSpinning) "در حال چرخش..." else "چرخش مجدد (۵۰ سکه 🪙)",
+                                text = if (isSpinning) "در حال چرخش گردونه..." else "تماشای ویدیو برای چرخش رایگان 📺",
                                 fontSize = 15.sp,
-                                fontWeight = FontWeight.Bold,
+                                fontWeight = FontWeight.ExtraBold,
                                 color = Color.White
                             )
                             Spacer(modifier = Modifier.width(8.dp))
-                            Icon(imageVector = Icons.Default.PlayCircle, contentDescription = null, tint = Color.White)
+                            Icon(imageVector = Icons.Default.Videocam, contentDescription = null, tint = Color.White)
                         }
                     }
 
-                    // Watch Video for Free Extra Spin Button
-                    OutlinedButton(
-                        onClick = onWatchAdForFreeSpin,
-                        enabled = !isSpinning,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(48.dp)
-                            .testTag("free_spin_ad_btn"),
-                        shape = RoundedCornerShape(16.dp)
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = "تماشای ویدیو بازار برای چرخش رایگان",
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Icon(imageVector = Icons.Default.Videocam, contentDescription = null, tint = Color(0xFF00A651))
-                        }
-                    }
-
-                    // Paid extra spin with the premium currency (gems)
+                    // Premium extra spin with the premium currency (gems) — no ad required.
                     OutlinedButton(
                         onClick = onGemSpin,
                         enabled = !isSpinning,
@@ -574,6 +553,14 @@ fun FortuneWheelScreen(
                             Text(text = "💎", fontSize = 14.sp)
                         }
                     }
+
+                    Text(
+                        text = "چرخش روزانه محدود است؛ پس از مصرف آن، فقط با تماشای ویدیو یا الماس می‌توانید دوباره بچرخید.",
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(horizontal = 12.dp)
+                    )
                 }
             }
 
@@ -598,10 +585,24 @@ fun FortuneWheelScreen(
                             .padding(24.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Text(text = if (lastWonReward.isJackpot) "🎰👑💎" else "${lastWonReward.iconEmoji}🎉✨", fontSize = 44.sp)
+                        val emptyWin = lastWonReward.coins == 0 && lastWonReward.gems == 0 &&
+                            lastWonReward.freeLetterHints == 0 && lastWonReward.freeWordHints == 0
+
+                        Text(
+                            text = when {
+                                lastWonReward.isJackpot -> "🎰👑💎"
+                                emptyWin -> "🫥🕳️"
+                                else -> "${lastWonReward.iconEmoji}🎉✨"
+                            },
+                            fontSize = 44.sp
+                        )
                         Spacer(modifier = Modifier.height(10.dp))
                         Text(
-                            text = if (lastWonReward.isJackpot) "جک‌پات طلایی برنده شدید!" else "تبریک! جایزه شما:",
+                            text = when {
+                                lastWonReward.isJackpot -> "جک‌پات طلایی برنده شدید!"
+                                emptyWin -> "متأسفانه این بار پوچ بود"
+                                else -> "تبریک! جایزه شما:"
+                            },
                             fontSize = 18.sp,
                             fontWeight = FontWeight.ExtraBold,
                             color = GoldSecondary,
@@ -612,7 +613,8 @@ fun FortuneWheelScreen(
                             text = lastWonReward.labelFa,
                             fontSize = 24.sp,
                             fontWeight = FontWeight.Black,
-                            color = MaterialTheme.colorScheme.onSurface,
+                            color = if (emptyWin) MaterialTheme.colorScheme.onSurfaceVariant
+                            else MaterialTheme.colorScheme.onSurface,
                             textAlign = TextAlign.Center
                         )
 

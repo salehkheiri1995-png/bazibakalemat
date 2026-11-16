@@ -86,7 +86,8 @@ data class WheelReward(
     val freeWordHints: Int = 0,
     val colorHex: Long,
     val iconEmoji: String = "🪙",
-    val isJackpot: Boolean = false
+    val isJackpot: Boolean = false,
+    val weight: Int = 1
 )
 data class DailyLoginReward(
     val dayNumber: Int,

@@ -783,21 +783,15 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         checkDailyFreeSpin()
 
         val isDailyFree = _isDailyFreeSpinAvailable.value
-        val cost = when {
-            isDailyFree -> 0
-            isFreeSpinFromAd -> 0
-            else -> GameConfig.WHEEL_SPIN_COST
-        }
 
-        if (cost > 0 && _coins.value < cost) {
+        // A normal spin is only allowed for the once-per-day free spin. Further spins must be
+        // unlocked by watching a rewarded ad (isFreeSpinFromAd = true) or paying gems, so the
+        // wheel can no longer be farmed with coins for unlimited profit.
+        if (!isDailyFree && !isFreeSpinFromAd) {
             soundManager.playSound(SoundType.ERROR)
             soundManager.vibrate(SoundType.ERROR)
-            showToast("برای چرخش گردونه حداقل ۵۰ سکه لازم است، یا می‌توانید ویدیوی رایگان ببینید!")
+            showToast("چرخش رایگان امروز مصرف شد. برای چرخش مجدد، ویدیوی تبلیغاتی تماشا کن یا ${GameConfig.EXTRA_SPIN_GEM_COST} الماس خرج کن!")
             return
-        }
-
-        if (cost > 0) {
-            spendCoins(cost)
         }
 
         val now = System.currentTimeMillis()
@@ -811,13 +805,23 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         _lastWheelReward.value = null
 
         viewModelScope.launch {
-            val rewardsCount = GameRepository.wheelRewards.size
-            val targetIndex = Random.nextInt(rewardsCount)
+            // Weighted pick: empty slots have high weight, rich rewards are rare.
+            val rewards = GameRepository.wheelRewards
+            val totalWeight = rewards.sumOf { it.weight }
+            var roll = Random.nextInt(totalWeight)
+            var targetIndex = 0
+            for ((i, r) in rewards.withIndex()) {
+                roll -= r.weight
+                if (roll < 0) {
+                    targetIndex = i
+                    break
+                }
+            }
 
             // Exact mathematical angle alignment:
             // Slices start from 0 at 3 o'clock. Pointer needle is at top (270 degrees).
             // Segment k center is at k * segmentAngle + (segmentAngle / 2)
-            val segmentAngle = 360f / rewardsCount
+            val segmentAngle = 360f / rewards.size
             val segmentCenter = targetIndex * segmentAngle + (segmentAngle / 2f)
             val desiredModulo = (270f - segmentCenter + 3600f) % 360f
 
@@ -842,9 +846,19 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
 
             delay(280) // Let the animation settle smoothly on the slice
 
-            val wonReward = GameRepository.wheelRewards[targetIndex]
+            val wonReward = rewards[targetIndex]
             _lastWheelReward.value = wonReward
             _isSpinning.value = false
+
+            val isEmpty = wonReward.coins == 0 && wonReward.gems == 0 &&
+                wonReward.freeLetterHints == 0 && wonReward.freeWordHints == 0
+
+            if (isEmpty) {
+                soundManager.playSound(SoundType.ERROR)
+                soundManager.vibrate(SoundType.ERROR)
+                showToast("متأسفانه این بار پوچ بود؛ دفعه بعد شانس بهتری داری! 🍀")
+                return@launch
+            }
 
             if (wonReward.coins > 0) addCoins(wonReward.coins)
             if (wonReward.gems > 0) addGems(wonReward.gems)

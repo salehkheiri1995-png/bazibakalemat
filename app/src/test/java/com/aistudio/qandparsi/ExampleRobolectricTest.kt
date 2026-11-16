@@ -60,7 +60,11 @@ class ExampleRobolectricTest {
     assertTrue(GameRepository.levels.isNotEmpty())
     assertTrue(GameRepository.proverbs.isNotEmpty())
     assertTrue(GameRepository.shopProducts.isNotEmpty())
-    assertEquals(8, GameRepository.wheelRewards.size)
+    assertEquals(12, GameRepository.wheelRewards.size)
+    // The wheel must be weighted toward empty/small outcomes, so the sum of all weights
+    // must exceed the number of segments (i.e. some segments are far more likely).
+    assertTrue(GameRepository.wheelRewards.sumOf { it.weight } > GameRepository.wheelRewards.size)
+    assertTrue(GameRepository.wheelRewards.any { it.coins == 0 && it.gems == 0 && it.freeLetterHints == 0 && it.freeWordHints == 0 })
 
     val firstLevel = GameRepository.levels[0]
     assertEquals(1, firstLevel.stageNumber)

@@ -432,15 +432,17 @@ object GameRepository {
         )
     )
 
-    // 8-Segment Lucky Spin Wheel Rewards (گردونه شانس با جوایز سکه و راهنماهای کاربردی)
+    // 12-Segment Lucky Spin Wheel Rewards. The wheel is intentionally weighted: empty
+    // ("پوچ") and small outcomes dominate, while coins and gems are rare. A normal spin is
+    // only available as the once-per-day free spin or after watching an ad / spending gems.
     val wheelRewards: List<WheelReward> = listOf(
         WheelReward(
             id = 1,
-            labelFa = "۱۰۰ سکه",
-            coins = 100,
-            gems = 0,
-            colorHex = 0xFF00796B,
-            iconEmoji = "💰"
+            labelFa = "پوچ",
+            coins = 0,
+            colorHex = 0xFFB0BEC5,
+            iconEmoji = "🫥",
+            weight = 10
         ),
         WheelReward(
             id = 2,
@@ -449,59 +451,92 @@ object GameRepository {
             gems = 0,
             freeLetterHints = 1,
             colorHex = 0xFF3949AB,
-            iconEmoji = "💡"
+            iconEmoji = "💡",
+            weight = 4
         ),
         WheelReward(
             id = 3,
-            labelFa = "۲۰۰ سکه",
-            coins = 200,
-            gems = 1,
-            colorHex = 0xFFC2185B,
-            iconEmoji = "💰"
+            labelFa = "پوچ",
+            coins = 0,
+            colorHex = 0xFFB0BEC5,
+            iconEmoji = "❌",
+            weight = 10
         ),
         WheelReward(
             id = 4,
-            labelFa = "جک‌پات ۸۰۰",
-            coins = 800,
-            gems = 5,
-            freeLetterHints = 2,
-            colorHex = 0xFFFFA000,
-            iconEmoji = "👑",
-            isJackpot = true
+            labelFa = "۱۰ سکه",
+            coins = 10,
+            colorHex = 0xFF00796B,
+            iconEmoji = "🪙",
+            weight = 5
         ),
         WheelReward(
             id = 5,
-            labelFa = "۱ فاش کلمه",
+            labelFa = "پوچ",
             coins = 0,
-            gems = 1,
-            freeWordHints = 1,
-            colorHex = 0xFF7B1FA2,
-            iconEmoji = "🔮"
+            colorHex = 0xFFB0BEC5,
+            iconEmoji = "🎳",
+            weight = 10
         ),
         WheelReward(
             id = 6,
-            labelFa = "۳۰۰ سکه",
-            coins = 300,
-            gems = 0,
+            labelFa = "۲۰ سکه",
+            coins = 20,
             colorHex = 0xFF00838F,
-            iconEmoji = "🏆"
+            iconEmoji = "🪙",
+            weight = 4
         ),
         WheelReward(
             id = 7,
-            labelFa = "۲ راهنما حرف",
-            coins = 50,
-            gems = 0,
-            freeLetterHints = 2,
-            colorHex = 0xFFD84315,
-            iconEmoji = "✨"
+            labelFa = "۱ الماس",
+            coins = 0,
+            gems = 1,
+            colorHex = 0xFF1565C0,
+            iconEmoji = "💎",
+            weight = 2
         ),
         WheelReward(
             id = 8,
-            labelFa = "۵ الماس",
+            labelFa = "پوچ",
+            coins = 0,
+            colorHex = 0xFFB0BEC5,
+            iconEmoji = "🌵",
+            weight = 10
+        ),
+        WheelReward(
+            id = 9,
+            labelFa = "۳۰ سکه",
+            coins = 30,
+            colorHex = 0xFFC2185B,
+            iconEmoji = "🏆",
+            weight = 3
+        ),
+        WheelReward(
+            id = 10,
+            labelFa = "۲ راهنما حرف",
+            coins = 0,
+            freeLetterHints = 2,
+            colorHex = 0xFFD84315,
+            iconEmoji = "✨",
+            weight = 2
+        ),
+        WheelReward(
+            id = 11,
+            labelFa = "پوچ",
+            coins = 0,
+            colorHex = 0xFFB0BEC5,
+            iconEmoji = "🕳️",
+            weight = 10
+        ),
+        WheelReward(
+            id = 12,
+            labelFa = "جک‌پات ۱۵۰",
             coins = 150,
-            gems = 5,
-            colorHex = 0xFF1565C0,
-            iconEmoji = "💎"
+            gems = 2,
+            colorHex = 0xFFFFA000,
+            iconEmoji = "👑",
+            isJackpot = true,
+            weight = 1
         )
     )
 
